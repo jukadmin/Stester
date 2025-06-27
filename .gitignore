@@ -1,1 +1,10 @@
 /.venv/
+.venv/
+/.idea/
+.idea/
+Hystory.csv
+main.log
+MyStrategy.html
+__pycache__
+__pycache__/
+/__pycache__/

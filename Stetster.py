@@ -111,4 +111,5 @@ print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]'
 #        'Expectancy [%]', 'SQN', 'Kelly Criterion', '_strategy',
 #        '_equity_curve', '_trades
 
+
 bt.plot()
