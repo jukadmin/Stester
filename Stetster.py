@@ -76,24 +76,12 @@ df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что з�
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
 
-# Стандартная встроенная стратегия.
-class SmaCross(Strategy):
-    def init(self):
-        # Инициализация индикаторов SMA
-        self.sma1 = self.I(lambda x: pd.Series(x).rolling(10).mean(), self.data.Close)
-        self.sma2 = self.I(lambda x: pd.Series(x).rolling(20).mean(), self.data.Close)
-
-    def next(self):
-        if crossover(self.sma1, self.sma2):
-            self.buy(size=0.2)  # 20% от доступного капитала
-        elif crossover(self.sma2, self.sma1):
-            self.sell(size=0.2)
 
 # Запуск бэктеста
 #bt = Backtest(df, SmaCross, cash=50_000, commission=0.002)
 #stats = bt.run()
 
-bt = Backtest(df, MyStrategy, cash=10000, commission=0.002)
+bt = Backtest(df, MyStrategy, cash=10000, commission=0.0)
 stats = bt.run()
 
 # Вывод результатов
@@ -118,4 +106,4 @@ print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]'
 #        '_equity_curve', '_trades
 
 
-bt.plot(resample='15min')
+bt.plot(resample='15min') # type: ignore
