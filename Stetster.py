@@ -96,10 +96,10 @@ stats = bt.run()
 #print(stats)
 # Пример: только ключевые метрики
 print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]', 'Equity Peak [$]',
-             'Commissions [$]', 'Max. Drawdown [%]', 'Avg. Drawdown [%]',
-             'Max. Drawdown Duration', 'Avg. Drawdown Duration', '# Trades', 'Win Rate [%]', 'Best Trade [%]',
+             'Max. Drawdown [%]', 'Avg. Drawdown [%]', 'Max. Drawdown Duration', 'Avg. Drawdown Duration', '# Trades',
+             'Win Rate [%]', 'Best Trade [%]',
              'Worst Trade [%]', 'Avg. Trade [%]', 'Max. Trade Duration', 'Avg. Trade Duration', 'Profit Factor',
-             'Expectancy [%]', '_strategy']])
+             'Expectancy [%]']])
 # Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]',
 #        'Equity Peak [$]', 'Commissions [$]', 'Return [%]',
 #        'Buy & Hold Return [%]', 'Return (Ann.) [%]', 'Volatility (Ann.) [%]',

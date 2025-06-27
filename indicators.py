@@ -89,7 +89,7 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
         'Close':  'last',
         'Volume': 'sum',
     }
-    df_15 = df.resample('15T').agg(agg)
+    df_15 = df.resample('15min').agg(agg)
     df_15.dropna(inplace=True)
     df_15.reset_index(inplace=True)
     return df_15
