@@ -2,9 +2,18 @@
 import pandas as pd
 import numpy as np
 
+# === Определение точности цен (десятичных знаков) ===
+def detect_price_precision(df: pd.DataFrame) -> int:
+    """Определяет максимальное количество знаков после запятой по Open, High, Low, Close."""
+    sample_values = df[['Open', 'High', 'Low', 'Close']].iloc[0]
+    max_decimals = max(
+        [len(str(val).split('.')[-1]) if '.' in str(val) else 0 for val in sample_values]
+    )
+    return max_decimals
+
 # === ATR Volatility Bands ===
 def atr_bands(df: pd.DataFrame, atr_period: int = 14, ma_period: int = 20, mult: float = 2.0):
-    """Возвращает basis, upper, lower ATR‑канала."""
+    precision = detect_price_precision(df)
     tr = pd.concat([
         df['High'] - df['Low'],
         (df['High'] - df['Close'].shift()).abs(),
@@ -15,10 +24,12 @@ def atr_bands(df: pd.DataFrame, atr_period: int = 14, ma_period: int = 20, mult:
     basis = df['Close'].ewm(span=ma_period, adjust=False).mean()
     upper = basis + mult * atr
     lower = basis - mult * atr
-    return basis, upper, lower
+
+    return basis.round(precision), upper.round(precision), lower.round(precision)
 
 # === Bollinger Band Stops (упрощённая логика направления) ===
 def bb_stops(df: pd.DataFrame, length: int = 20, mult: float = 1.0):
+    precision = detect_price_precision(df)
     basis = df['Close'].ewm(span=length, adjust=False).mean()
     dev = mult * df['Close'].rolling(length).std()
     upper = basis + dev
@@ -35,10 +46,12 @@ def bb_stops(df: pd.DataFrame, length: int = 20, mult: float = 1.0):
         else:
             direction[i] = direction[i-1] if pd.notna(direction[i-1]) else 'none'
         stop_line[i] = lower.iloc[i] if direction[i] == 'up' else upper.iloc[i] if direction[i] == 'down' else np.nan
-    return pd.Series(direction, index=df.index), pd.Series(stop_line, index=df.index)
+
+    return pd.Series(direction, index=df.index), pd.Series(stop_line, index=df.index).round(precision)
 
 # === ADX Histogram с цветовой логикой ===
 def adx_histogram(df: pd.DataFrame, period: int = 14):
+    precision = detect_price_precision(df)
     up_move   = df['High'].diff()
     down_move = df['Low'].diff().abs()
     plus_dm   = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
@@ -67,7 +80,8 @@ def adx_histogram(df: pd.DataFrame, period: int = 14):
         elif minus_di.iloc[i] > plus_di.iloc[i]:
             last_color = 'red'
         colors.append(last_color)
-    return pd.Series(adx, index=df.index), pd.Series(colors, index=df.index)
+
+    return pd.Series(adx, index=df.index).round(precision), pd.Series(colors, index=df.index)
 
 # === Агрегация 1‑минутных данных в 15‑минутный таймфрейм ===
 def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
