@@ -112,4 +112,4 @@ print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]'
 #        '_equity_curve', '_trades
 
 
-bt.plot()
+bt.plot(resample='15min')

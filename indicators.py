@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 
 # === ATR Volatility Bands ===
-
 def atr_bands(df: pd.DataFrame, atr_period: int = 14, ma_period: int = 20, mult: float = 2.0):
     """Возвращает basis, upper, lower ATR‑канала."""
     tr = pd.concat([
@@ -19,7 +18,6 @@ def atr_bands(df: pd.DataFrame, atr_period: int = 14, ma_period: int = 20, mult:
     return basis, upper, lower
 
 # === Bollinger Band Stops (упрощённая логика направления) ===
-
 def bb_stops(df: pd.DataFrame, length: int = 20, mult: float = 1.0):
     basis = df['Close'].ewm(span=length, adjust=False).mean()
     dev = mult * df['Close'].rolling(length).std()
@@ -40,7 +38,6 @@ def bb_stops(df: pd.DataFrame, length: int = 20, mult: float = 1.0):
     return pd.Series(direction, index=df.index), pd.Series(stop_line, index=df.index)
 
 # === ADX Histogram с цветовой логикой ===
-
 def adx_histogram(df: pd.DataFrame, period: int = 14):
     up_move   = df['High'].diff()
     down_move = df['Low'].diff().abs()
@@ -73,7 +70,6 @@ def adx_histogram(df: pd.DataFrame, period: int = 14):
     return pd.Series(adx, index=df.index), pd.Series(colors, index=df.index)
 
 # === Агрегация 1‑минутных данных в 15‑минутный таймфрейм ===
-
 def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     """Принимает DF с индексом‑датой и колонками Open, High, Low, Close, Volume; возвращает 15‑минутный DF."""
     df = df_1min.copy()
@@ -95,7 +91,6 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     return df_15
 
 # === Генерация сигналов стратегии ===
-
 def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05):
     basis, up_atr, low_atr = atr_bands(df_15min)
     bb_dir, _ = bb_stops(df_15min)
@@ -112,4 +107,6 @@ def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05):
         (abs(close - up_atr) / channel < atr_touch_pct) &
         (bb_dir == 'down') & (adx_col == 'red')
     )
+    print("Количество long сигналов:", long_sig.sum())
+    print("Количество short сигналов:", short_sig.sum())
     return long_sig, short_sig
