@@ -71,7 +71,7 @@ def adx_histogram(df: pd.DataFrame, period: int = 14):
 
 # === Агрегация 1‑минутных данных в 15‑минутный таймфрейм ===
 def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
-    """Принимает DF с индексом‑датой и колонками Open, High, Low, Close, Volume; возвращает 15‑минутный DF."""
+    # Принимает DF с индексом‑датой и колонками Open, High, Low, Close, Volume; возвращает 15‑минутный DF
     df = df_1min.copy()
 
     # Гарантируем DatetimeIndex
@@ -88,6 +88,7 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     df_15 = df.resample('15min').agg(agg)
     df_15.dropna(inplace=True)
     df_15.reset_index(inplace=True)
+    print("Загружено баров (15мин):", len(df_15))  # Контрольная точка
     return df_15
 
 # === Генерация сигналов стратегии ===
@@ -110,3 +111,22 @@ def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05):
     print("Количество long сигналов:", long_sig.sum())
     print("Количество short сигналов:", short_sig.sum())
     return long_sig, short_sig
+
+# === Выгрузка значений индикаторов в CSV ===
+def export_indicators_to_csv(df_15min: pd.DataFrame, output_file: str = 'indicators_export.csv'):
+    basis, upper, lower = atr_bands(df_15min)
+    bb_dir, bb_line = bb_stops(df_15min)
+    adx, adx_color = adx_histogram(df_15min)
+
+    out = pd.DataFrame({
+        'Datetime': df_15min['Date'],
+        'ATR_Basis': basis,
+        'ATR_Upper': upper,
+        'ATR_Lower': lower,
+        'BB_Direction': bb_dir,
+        'BB_StopLine': bb_line,
+        'ADX_Value': adx,
+        'ADX_Color': adx_color
+    })
+    out.to_csv(output_file, index=False)
+    print(f"Экспорт индикаторов выполнен: {output_file}")

@@ -4,6 +4,8 @@ import pandas as pd
 import logging
 import warnings
 from indicators import resample_to_15min, generate_signals
+from indicators import export_indicators_to_csv
+
 
 
 class MyStrategy(Strategy):
@@ -13,6 +15,7 @@ class MyStrategy(Strategy):
 
     def init(self):
         df_15min = resample_to_15min(self.data.df)
+        export_indicators_to_csv(df_15min)
         self.long_signal, self.short_signal = generate_signals(df_15min)
         self.last_entry_price = None
         self.trailing_stop = None
@@ -71,7 +74,9 @@ df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index('Date', inplace=True)
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+ldf = len(df)
 
+# Стандартная встроенная стратегия.
 class SmaCross(Strategy):
     def init(self):
         # Инициализация индикаторов SMA
@@ -94,6 +99,7 @@ stats = bt.run()
 # Вывод результатов
 #print(stats.keys())
 #print(stats)
+print("Длинна загруженных данных", ldf)
 # Пример: только ключевые метрики
 print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]', 'Equity Peak [$]',
              'Max. Drawdown [%]', 'Avg. Drawdown [%]', 'Max. Drawdown Duration', 'Avg. Drawdown Duration', '# Trades',
