@@ -87,10 +87,11 @@ def adx_histogram(df: pd.DataFrame, period: int = 14):
 def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     # Принимает DF с индексом‑датой и колонками Open, High, Low, Close, Volume; возвращает 15‑минутный DF
     df = df_1min.copy()
-
+    
     # Гарантируем DatetimeIndex
-    if not isinstance(df.index, pd.DatetimeIndex):
-        df.index = pd.to_datetime(df.index)
+    #if not isinstance(df.index, pd.DatetimeIndex): # было раньше как проверка. 
+    #    df.index = pd.to_datetime(df.index)
+    df.index = pd.to_datetime(df.index)  # без условия, всегда преобразуем
 
     agg = {
         'Open':   'first',
@@ -101,7 +102,7 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     }
     df_15 = df.resample('15min').agg(agg)
     df_15.dropna(inplace=True)
-    df_15.reset_index(inplace=True)
+    #df_15.reset_index(inplace=True)
     print("Загружено баров (15мин):", len(df_15))  # Контрольная точка
     return df_15
 
@@ -144,6 +145,26 @@ def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05, lookba
 
     return long_sig, short_sig
 
+
+# === Растяжение сигналов с 15м на 1м индекс ===
+def stretch_signals_to_minute(df_15min, df_1min, long_sig, short_sig):
+    if not isinstance(df_15min.index, pd.DatetimeIndex):
+        df_15min.index = pd.to_datetime(df_15min.index)
+
+    if not isinstance(df_1min.index, pd.DatetimeIndex):
+        df_1min.index = pd.to_datetime(df_1min.index)
+    
+    # """Реиндексирует сигналы с 15м таймфрейма на минутный."""
+    #print(f"Тип всех колонок long_sig in indic : {long_sig.dtypes}")
+    #print(f"chek df15 ", isinstance(df_15min.index, pd.DatetimeIndex))
+    #print(f"check df 1min", isinstance(df_1min.index, pd.DatetimeIndex))
+    #print(f"check df long", isinstance(long_sig.index, pd.DatetimeIndex))
+    #print(f"Тип индекса long_sig in indic : {type(long_sig.index)}")
+    long_signal_min = long_sig.reindex(df_1min.index, method='ffill').fillna(False)
+    short_signal_min = short_sig.reindex(df_1min.index, method='ffill').fillna(False)
+    return long_signal_min, short_signal_min
+
+
 # === Выгрузка значений индикаторов в CSV ===
 def export_indicators_to_csv(df_15min: pd.DataFrame, output_file: str = 'indicators_export.csv'):
     basis, upper, lower = atr_bands(df_15min)
@@ -151,7 +172,7 @@ def export_indicators_to_csv(df_15min: pd.DataFrame, output_file: str = 'indicat
     adx, adx_color = adx_histogram(df_15min)
 
     out = pd.DataFrame({
-        'Datetime': df_15min['Date'],
+        'Datetime': df_15min.index,
         'ATR_Basis': basis,
         'ATR_Upper': upper,
         'ATR_Lower': lower,

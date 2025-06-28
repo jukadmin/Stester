@@ -3,7 +3,7 @@ from backtesting.lib import crossover
 import pandas as pd
 import logging
 import warnings
-from indicators import resample_to_15min, generate_signals
+from indicators import resample_to_15min, generate_signals, stretch_signals_to_minute
 from indicators import export_indicators_to_csv
 
 
@@ -17,16 +17,25 @@ class MyStrategy(Strategy):
         df_15min = resample_to_15min(self.data.df)
         export_indicators_to_csv(df_15min)
         self.long_signal, self.short_signal = generate_signals(df_15min)
-        print("init short сигнал :", self.short_signal[self.short_signal].to_string())
+        #print(f"Тип индекса df: {type(self.data.df.index)}")
+        #print(f"Тип индекса df_15min: {type(df_15min.index)}")
+        self.long_signal_min, self.short_signal_min = stretch_signals_to_minute(df_15min, self.data.df, self.long_signal, self.short_signal)
+
+        print("init short сигнал :", self.short_signal_min[self.short_signal_min].to_string())
         self.last_entry_price = None
         self.trailing_stop = None
 
     def next(self):
         i = len(self.data.Close) - 1
         # print("i =" ,i)
-        long = self.long_signal.iloc[-1]
-        short = self.short_signal.iloc[-1]
-        print("self.short_signal.iloc[-1] = ", self.short_signal.iloc[-1])
+        #long = self.long_signal.iloc[-1]
+        #short = self.short_signal.iloc[-1]
+        #print("self.short_signal_min.iloc[-1] = ", self.short_signal_min.iloc[-1])
+
+
+        long = self.long_signal_min.iloc[-1]
+        short = self.short_signal_min.iloc[-1]
+        #print("self.short_signal_min.iloc[-1] = ", self.short_signal_min.iloc[-1])
 
         if self.position:
             price_now = self.data.Close[i]
@@ -82,7 +91,7 @@ logging.captureWarnings(True)
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index('Date', inplace=True)
-df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
+df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-10')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
