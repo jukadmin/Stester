@@ -17,14 +17,16 @@ class MyStrategy(Strategy):
         df_15min = resample_to_15min(self.data.df)
         export_indicators_to_csv(df_15min)
         self.long_signal, self.short_signal = generate_signals(df_15min)
-        print("init short сигнал :", self.short_signal)
+        print("init short сигнал :", self.short_signal[self.short_signal].to_string())
         self.last_entry_price = None
         self.trailing_stop = None
 
     def next(self):
         i = len(self.data.Close) - 1
+        # print("i =" ,i)
         long = self.long_signal.iloc[-1]
         short = self.short_signal.iloc[-1]
+        print("self.short_signal.iloc[-1] = ", self.short_signal.iloc[-1])
 
         if self.position:
             price_now = self.data.Close[i]
