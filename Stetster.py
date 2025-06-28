@@ -20,22 +20,24 @@ class MyStrategy(Strategy):
         #print(f"Тип индекса df: {type(self.data.df.index)}")
         #print(f"Тип индекса df_15min: {type(df_15min.index)}")
         self.long_signal_min, self.short_signal_min = stretch_signals_to_minute(df_15min, self.data.df, self.long_signal, self.short_signal)
-
-        print("init short сигнал :", self.short_signal_min[self.short_signal_min].to_string())
+        #print("init short сигнал true .str() :", self.short_signal_min[self.short_signal_min].to_string())
+        print("init short сигнал true .sum() :", self.short_signal_min[self.short_signal_min].sum())
         self.last_entry_price = None
         self.trailing_stop = None
 
     def next(self):
         i = len(self.data.Close) - 1
         # print("i =" ,i)
-        #long = self.long_signal.iloc[-1]
-        #short = self.short_signal.iloc[-1]
-        #print("self.short_signal_min.iloc[-1] = ", self.short_signal_min.iloc[-1])
-
-
-        long = self.long_signal_min.iloc[-1]
-        short = self.short_signal_min.iloc[-1]
-        #print("self.short_signal_min.iloc[-1] = ", self.short_signal_min.iloc[-1])
+        current_time = self.data.index[-1]  # индекс текущего бара
+        long = self.long_signal_min.get(current_time, False)
+        short = self.short_signal_min.get(current_time, False)
+        
+        # if short == True :
+        #     print(f"short = {short}"  )
+        #     print(f"Текущая минута: {self.data.index[-1]}, long: {long}, short: {short}")
+        # if long == True :
+        #     print(f"long = {long}"  )
+        #     print(f"Текущая минута: {self.data.index[-1]}, long: {long}, short: {short}")
 
         if self.position:
             price_now = self.data.Close[i]
@@ -95,7 +97,7 @@ df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index(['Date'], inplace=True)
 #print(f"Тип индекса df - 2: {type(df.index)}")
 #print("df upload - 2 ", df)
-df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-10')]
+df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
 #print("df upload - 3 ", df)
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 #print("df upload - 4 ", df)
