@@ -90,10 +90,17 @@ logging.captureWarnings(True)
 # Загрузка данных из файла Hystory.csv
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
-df.set_index('Date', inplace=True)
+#print(f"Тип индекса df - 1: {type(df.index)}")
+#print("df upload - 1 ", df)
+df.set_index(['Date'], inplace=True)
+#print(f"Тип индекса df - 2: {type(df.index)}")
+#print("df upload - 2 ", df)
 df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-10')]
+#print("df upload - 3 ", df)
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
+#print("df upload - 4 ", df)
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
+#print("df upload - 5 ", df)
 ldf = len(df)
 
 

@@ -51,11 +51,15 @@ def bb_stops(df: pd.DataFrame, length: int = 20, mult: float = 1.0):
 
 # === ADX Histogram с цветовой логикой ===
 def adx_histogram(df: pd.DataFrame, period: int = 14):
+    #print("df15 indic", df)
     precision = detect_price_precision(df)
-    up_move   = df['High'].diff()
+    up_move   = df['High'].diff().abs()
+    #print("upmove cmd :", df['High'].diff())
+    #print("upmove cmd abs :", df['High'].diff().abs())
+    #print("upmove str :", up_move)
     down_move = df['Low'].diff().abs()
-    plus_dm   = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
-    minus_dm  = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), other=0)
+    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), other=0)
 
     tr = pd.concat([
         df['High'] - df['Low'],
@@ -109,8 +113,8 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
 # === Генерация сигналов стратегии ===
 def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05, lookback_bars: int = 15):
     basis, up_atr, low_atr = atr_bands(df_15min)
-    bb_dir, _ = bb_stops(df_15min)
-    _, adx_col = adx_histogram(df_15min)
+    bb_dir, bb_stop = bb_stops(df_15min)
+    adx, adx_col = adx_histogram(df_15min)
 
     channel = up_atr - low_atr
     close = df_15min['Close']
@@ -140,8 +144,8 @@ def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05, lookba
 
     #print("LongSignal", long_sig[long_sig] )
     # print("ShortSignal", close, short_sig[short_sig] )
-    print("Количество long сигналов:", long_sig.sum())
-    print("Количество short сигналов:", short_sig.sum())
+    print("Количество long сигналов 15min :", long_sig.sum())
+    print("Количество short сигналов 15min :", short_sig.sum())
 
     return long_sig, short_sig
 
