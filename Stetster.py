@@ -5,6 +5,7 @@ import logging
 import warnings
 from indicators import resample_to_15min, generate_signals, stretch_signals_to_minute
 from indicators import export_indicators_to_csv
+import openpyxl
 
 
 
@@ -112,6 +113,24 @@ ldf = len(df)
 
 bt = Backtest(df, MyStrategy, cash=10000, commission=0.0)
 stats = bt.run()
+# Получаем DataFrame сделок
+#tradesx = stats._trades
+tradesx = stats._trades.copy()
+# Добавим Direction: если Size > 0 — long, иначе — short
+tradesx['Direction'] = tradesx['Size'].apply(lambda x: 'long' if x > 0 else 'short')
+tradesx['Duration'] = tradesx['Duration'].astype(str)
+tradesx['EntryTime'] = tradesx['EntryTime'].dt.strftime('%Y-%m-%d %H:%M')
+tradesx['ExitTime'] = tradesx['ExitTime'].dt.strftime('%Y-%m-%d %H:%M')
+desired_columns = [
+    'EntryTime', 'EntryBar', 'EntryPrice', 'Direction', 'Size',
+    'SL', 'TP', 'ExitTime', 'ExitBar', 'ExitPrice',
+    'Duration', 'PnL', 'ReturnPct', 'Tag'
+]
+tradesx = tradesx[desired_columns]
+
+print(tradesx)
+tradesx.to_excel("Trades.xlsx", index=False)
+print("История сделок экспортирована в Trades.xlsx")
 
 # Вывод результатов
 #print(stats.keys())
