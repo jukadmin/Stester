@@ -106,24 +106,42 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     return df_15
 
 # === Генерация сигналов стратегии ===
-def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05):
+def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05, lookback_bars: int = 15):
     basis, up_atr, low_atr = atr_bands(df_15min)
     bb_dir, _ = bb_stops(df_15min)
     _, adx_col = adx_histogram(df_15min)
 
     channel = up_atr - low_atr
     close = df_15min['Close']
+    open_ = df_15min['Open']
 
-    long_sig = (
-        (abs(close - low_atr) / channel < atr_touch_pct) &
-        (bb_dir == 'up') & (adx_col == 'blue')
-    )
-    short_sig = (
-        (abs(close - up_atr) / channel < atr_touch_pct) &
-        (bb_dir == 'down') & (adx_col == 'red')
-    )
+    # Создаём флаги касания ATR по Close и Open за lookback_bars
+    long_touch = pd.Series(False, index=df_15min.index)
+    short_touch = pd.Series(False, index=df_15min.index)
+    #print("long_touch" , long_touch) 
+    for i in range(lookback_bars, len(df_15min)):
+        recent_open = open_.iloc[i-lookback_bars:i+1]
+        recent_close = close.iloc[i-lookback_bars:i+1]
+        recent_channel = channel.iloc[i]
+        recent_lower = low_atr.iloc[i]
+        recent_upper = up_atr.iloc[i]
+
+        if ((abs(recent_open - recent_lower) / recent_channel < atr_touch_pct) | 
+            (abs(recent_close - recent_lower) / recent_channel < atr_touch_pct)).any():
+            long_touch.iloc[i] = True
+
+        if ((abs(recent_open - recent_upper) / recent_channel < atr_touch_pct) | 
+            (abs(recent_close - recent_upper) / recent_channel < atr_touch_pct)).any():
+            short_touch.iloc[i] = True
+
+    long_sig = long_touch & (bb_dir == 'up') & (adx_col == 'blue')
+    short_sig = short_touch & (bb_dir == 'down') & (adx_col == 'red')
+
+    #print("LongSignal", long_sig[long_sig] )
+    # print("ShortSignal", close, short_sig[short_sig] )
     print("Количество long сигналов:", long_sig.sum())
     print("Количество short сигналов:", short_sig.sum())
+
     return long_sig, short_sig
 
 # === Выгрузка значений индикаторов в CSV ===

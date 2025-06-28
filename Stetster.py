@@ -17,6 +17,7 @@ class MyStrategy(Strategy):
         df_15min = resample_to_15min(self.data.df)
         export_indicators_to_csv(df_15min)
         self.long_signal, self.short_signal = generate_signals(df_15min)
+        print("init short сигнал :", self.short_signal)
         self.last_entry_price = None
         self.trailing_stop = None
 
@@ -45,13 +46,20 @@ class MyStrategy(Strategy):
                     self.position.close()
             return
 
+        #contract_precision = 0
         if long:
-            size = self.equity * 0.4 * 10 / self.data.Close[i]
+            print("Long cmd = ", long)
+            size = self.equity * 0.4  / self.data.Close[i]
+            size = round(size)
+            #print(f"Size long  = {size}")
             self.buy(size=size)
             self.last_entry_price = self.data.Close[i]
             self.trailing_stop = self.last_entry_price - self.last_entry_price * self.stop_loss_pct
         elif short:
-            size = self.equity * 0.4 * 10 / self.data.Close[i]
+            print("Short cmd = ", i, short, self.data.Open[i], self.data.High[i], self.data.Low[i], self.data.Close[i])
+            size = self.equity * 0.4  / self.data.Close[i]
+            size = round(size)
+            #print(f"Size short  = {size}")
             self.sell(size=size)
             self.last_entry_price = self.data.Close[i]
             self.trailing_stop = self.last_entry_price + self.last_entry_price * self.stop_loss_pct
@@ -72,6 +80,7 @@ logging.captureWarnings(True)
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index('Date', inplace=True)
+df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
@@ -106,4 +115,4 @@ print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]'
 #        '_equity_curve', '_trades
 
 
-bt.plot(resample='15min') # type: ignore
+bt.plot(resample='15min', open_browser=False) # type: ignore
