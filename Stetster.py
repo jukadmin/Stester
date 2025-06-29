@@ -4,13 +4,16 @@ import pandas as pd
 import logging
 import warnings
 from indicators import resample_to_15min, generate_signals, stretch_signals_to_minute
-from indicators import export_indicators_to_csv
+from indicators import export_indicators_to_csv, detect_price_precision
 from xlsxwriter import Workbook
+import math
 
 
 class MyStrategy(Strategy):
     # Параметры для оптимизации (при желании)
     stop_loss_pct    = 0.01   # 1 % — начальный стоп‑лосс
+    risk_pct    = 0.25   # 25 % — размер депо на сделку
+    margin_int    = 1   # 1  — коэфициент маржи
     trail_start_pct  = 0.01   # старт трейлинга (от входа в плюс)
     trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
 
@@ -26,6 +29,7 @@ class MyStrategy(Strategy):
         self.long_signal_min, self.short_signal_min = stretch_signals_to_minute(
             df_15min, df_1min, long_15, short_15
         )
+        self.precision = detect_price_precision(df)
 
         # для ведения трейлинга
         self.last_stop = None      # текущий stop‑loss (обновляется трейлингом)
@@ -35,42 +39,44 @@ class MyStrategy(Strategy):
         i            = len(self.data) - 1
         price        = float(self.data.Close[i])
         current_time = self.data.index[i]
-
         # Сигналы на текущую минуту
         long_signal  = self.long_signal_min.get(current_time, False)
         short_signal = self.short_signal_min.get(current_time, False)
+        #print(f"Текущая минута: i= {i} время {self.data.index[-1]}, время new {current_time} price {price} long: {long_signal}, short: {short_signal}")
 
         # === Вход в позицию ===
         if not self.position:
-            entry_value = self.equity * 0.4 * 10
+            entry_value = self.equity * self.risk_pct * self.margin_int
             size = int(round(entry_value / price))  # округляем до целого
 
             if long_signal:
                 sl = price * (1 - self.stop_loss_pct)
+                sl = round(sl, self.precision)
                 self.buy(size=size, sl=sl)
                 self.last_stop = sl
 
             elif short_signal:
                 sl = price * (1 + self.stop_loss_pct)
+                sl = round(sl, self.precision)
                 self.sell(size=size, sl=sl)
                 self.last_stop = sl
 
         # === Кастомный трейлинг ===
-        elif self.position.is_long:
-            profit_pct = (price - self.position.entry_price) / self.position.entry_price # type: ignore
-            if profit_pct > self.trail_start_pct:
-                new_sl = price - price * self.trail_step_pct
-                if new_sl > self.last_stop:
-                    self.position.update_sl(new_sl) # type: ignore
-                    self.last_stop = new_sl
+        # elif self.position.is_long:
+        #     profit_pct = (price - self.position.entry_price) / self.position.entry_price # type: ignore
+        #     if profit_pct > self.trail_start_pct:
+        #         new_sl = price - price * self.trail_step_pct
+        #         if new_sl > self.last_stop:
+        #             self.position.update_sl(new_sl) # type: ignore
+        #             self.last_stop = new_sl
 
-        elif self.position.is_short:
-            profit_pct = (self.position.entry_price - price) / self.position.entry_price # type: ignore
-            if profit_pct > self.trail_start_pct:
-                new_sl = price + price * self.trail_step_pct
-                if new_sl < self.last_stop:
-                    self.position.update_sl(new_sl) # type: ignore
-                    self.last_stop = new_sl
+        # elif self.position.is_short:
+        #     profit_pct = (self.position.entry_price - price) / self.position.entry_price # type: ignore
+        #     if profit_pct > self.trail_start_pct:
+        #         new_sl = price + price * self.trail_step_pct
+        #         if new_sl < self.last_stop:
+        #             self.position.update_sl(new_sl) # type: ignore
+        #             self.last_stop = new_sl
 
 
 # Настройка логгера
@@ -113,7 +119,6 @@ tradesx = stats._trades.copy()
 if not tradesx.empty:
     # 1) Направление сделки
     tradesx['Direction'] = tradesx['Size'].apply(lambda x: 'long' if x > 0 else 'short')
-    print(tradesx)
     # 2) Приведение времени и длительности к человекочитаемому виду
     tradesx['Duration']  = tradesx['Duration'].astype(str)
     tradesx['EntryTime'] = tradesx['EntryTime'].dt.strftime('%Y-%m-%d %H:%M')
@@ -125,6 +130,7 @@ if not tradesx.empty:
         'Duration', 'PnL', 'ReturnPct', 'Tag'
     ]
     tradesx = tradesx[cols]
+    print(tradesx)
     # ==== Экспорт в Excel с шириной колонок EntryTime и ExitTime = 16 сим ====
     with pd.ExcelWriter('Trades.xlsx', engine='xlsxwriter') as writer:
         tradesx.to_excel(writer, sheet_name='Trades', index=False)
