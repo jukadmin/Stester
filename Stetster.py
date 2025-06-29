@@ -6,18 +6,25 @@ import warnings
 from indicators import resample_to_15min, generate_signals, stretch_signals_to_minute
 from indicators import export_indicators_to_csv, detect_price_precision
 from xlsxwriter import Workbook
-import math
+import numpy as np
+
+opti = True
 
 
-class MyStrategy(Strategy):
+class MyStrategy(Strategy ):
     # Параметры для оптимизации (при желании)
-    stop_loss_pct    = 0.01   # 1 % — начальный стоп‑лосс
-    risk_pct    = 0.25   # 25 % — размер депо на сделку
+    stop_loss_pct = 1
+    #stop_loss_pct    = 0.01   # 1 % — начальный стоп‑лосс
+    risk_pct    = 25   # 25 % — размер депо на сделку
     margin_int    = 1   # 1  — коэфициент маржи
-    trail_start_pct  = 0.01   # старт трейлинга (от входа в плюс)
-    trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
+    trail_start_pct = 1
+    #trail_start_pct  = 0.01   # старт трейлинга (от входа в плюс)
+    trail_step_pct = 1  # !!! лишний 0. !!! 1 - понимается как 0.1 %
+    #trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
 
     def init(self):
+        super().init()
+        #self.stop_loss_pct = stop_loss_pct
         """Инициализируем индикаторы и сигналы"""
         df_1min   = self.data.df                      # минутные данные
         df_15min  = resample_to_15min(df_1min)        # 15‑минутные бары
@@ -36,6 +43,7 @@ class MyStrategy(Strategy):
         self.last_stop = None      # текущий stop‑loss (обновляется трейлингом)
 
     def next(self):
+        super().next()
         """Вызывается библиотекой на каждом новом минутном баре"""
         i            = len(self.data) - 1
         price        = float(self.data.Close[i])
@@ -47,39 +55,42 @@ class MyStrategy(Strategy):
         # print( )
         # === Вход в позицию ===
         if not self.position:
-            entry_value = self.equity * self.risk_pct * self.margin_int
+            entry_value = self.equity * (self.risk_pct / 100) * self.margin_int
             size = int(round(entry_value / price))  # округляем до целого
             self.trail_last = 0
 
             if long_signal:
-                sl = price * (1 - self.stop_loss_pct)
+                sl = price * (1 - (self.stop_loss_pct / 1000))
                 sl = round(sl, self.precision)
                 self.buy(size=size)
                 self.last_stop = sl
                 self.entry_price = price
-                print(f"Long: Price={price} Position={self.entry_price} SL={sl}")
+                #print(f"Long: Price={price} Position={self.entry_price} SL={sl}")
+                msg = f"Long: Price={price} Position={self.entry_price} SL={sl}"; trail_log.append(msg)
 
             elif short_signal:
-                sl = price * (1 + self.stop_loss_pct)
+                sl = price * (1 + (self.stop_loss_pct / 1000))
                 sl = round(sl, self.precision)
                 self.sell(size=size)
                 self.last_stop = sl
                 self.entry_price = price
-                print(f"Short: Price={price} Position={self.entry_price} SL={sl}")
+                #print(f"Short: Price={price} Position={self.entry_price} SL={sl}")
+                msg = f"Short: Price={price} Position={self.entry_price} SL={sl}"; trail_log.append(msg)
 
         # === Кастомный трейлинг ===
         elif self.position.is_long:
             profit_pct = (price - self.entry_price) / self.entry_price
             profit_pct = round(profit_pct, self.precision)
-            if profit_pct > self.trail_start_pct :  # включение трейлинга
-                new_sl = price - price * self.trail_start_pct
+            if profit_pct > (self.trail_start_pct / 100) :  # включение трейлинга
+                new_sl = price - price * (self.trail_start_pct / 100 )
                 new_sl = round(new_sl, self.precision)
                 new_sl_pct = (( new_sl - self.last_stop ) / self.last_stop ) * 100  # type: ignore
                 new_sl_pct = round(new_sl_pct, self.precision)
-                new_step_pct = self.trail_step_pct * 100
+                new_step_pct = self.trail_step_pct / 10
                 if new_sl_pct > new_step_pct:
                     #self.position.update_sl(new_sl) # type: ignore
-                    print(f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% ")
+                    #print(f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% ")
+                    msg = f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% "; trail_log.append(msg)
                     self.last_stop = new_sl
             if price <= self.last_stop: # type: ignore
                 #print(f"Position {self.position}")
@@ -90,15 +101,16 @@ class MyStrategy(Strategy):
         elif self.position.is_short:
             profit_pct = (self.entry_price - price) / self.entry_price
             profit_pct = round(profit_pct, self.precision)
-            if profit_pct > self.trail_start_pct :  # включение трейлинга
-                new_sl = price + price * self.trail_start_pct
+            if profit_pct > (self.trail_start_pct / 100 ) :  # включение трейлинга
+                new_sl = price + price * (self.trail_start_pct / 100 )
                 new_sl = round(new_sl, self.precision)
                 new_sl_pct = (( self.last_stop - new_sl ) / self.last_stop ) * 100  # type: ignore
                 new_sl_pct = round(new_sl_pct, self.precision)
-                new_step_pct = self.trail_step_pct * 100
+                new_step_pct = self.trail_step_pct / 10
                 if new_sl_pct > new_step_pct:
                     #self.position.update_sl(new_sl) # type: ignore
-                    print(f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% ")
+                    #print(f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% ")
+                    msg = f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% "; trail_log.append(msg)
                     self.last_stop = new_sl
             if price >= self.last_stop: # type: ignore
                 #print(f"Position {self.position}")
@@ -116,6 +128,9 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 
+# === Буфер для накопления логов трейлинга ===
+trail_log = []
+
 # Перехват предупреждений в лог
 logging.captureWarnings(True)
 
@@ -124,61 +139,79 @@ logging.captureWarnings(True)
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index(['Date'], inplace=True)
-df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-10')]
+df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-03')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
 
 
-# Запуск бэктеста
-#bt = Backtest(df, SmaCross, cash=50_000, commission=0.002)
-#stats = bt.run()
-
-bt = Backtest(df, MyStrategy, cash=10000, commission=0.0)
-stats = bt.run()
-# ==== Формируем DataFrame сделок ====
-tradesx = stats._trades.copy()
-if not tradesx.empty:
-    # 1) Направление сделки
-    tradesx['Direction'] = tradesx['Size'].apply(lambda x: 'long' if x > 0 else 'short')
-    # 2) Приведение времени и длительности к человекочитаемому виду
-    tradesx['Duration']  = tradesx['Duration'].astype(str)
-    tradesx['EntryTime'] = tradesx['EntryTime'].dt.strftime('%Y-%m-%d %H:%M')
-    tradesx['ExitTime']  = tradesx['ExitTime'].dt.strftime('%Y-%m-%d %H:%M')
-    # 3) Порядок колонок
-    cols = [
-        'EntryTime', 'EntryBar', 'EntryPrice', 'Direction', 'Size',
-        'SL', 'TP', 'ExitTime', 'ExitBar', 'ExitPrice',
-        'Duration', 'PnL', 'ReturnPct', 'Tag'
-    ]
-    tradesx = tradesx[cols]
-    print(tradesx)
-    # ==== Экспорт в Excel с шириной колонок EntryTime и ExitTime = 16 сим ====
-    with pd.ExcelWriter('Trades.xlsx', engine='xlsxwriter') as writer:
-        tradesx.to_excel(writer, sheet_name='Trades', index=False)
-        # Доступ к листу для настройки ширины столбцов
-        worksheet = writer.sheets['Trades']
-        entry_col = tradesx.columns.get_loc('EntryTime')  # индекс колонки
-        exit_col  = tradesx.columns.get_loc('ExitTime')
-        duration_col  = tradesx.columns.get_loc('Duration')
-        # Ширина = 16 символов
-        worksheet.set_column(entry_col, entry_col, 16)
-        worksheet.set_column(exit_col,  exit_col,  16)
-        worksheet.set_column(duration_col,  duration_col,  16)
-    print("История сделок экспортирована в Trades.xlsx")
-else:
-    print("❗ Сделок не было — экспорт не выполнен.")
-
-# Вывод результатов
-#print(stats.keys())
-#print(stats)
-print("Длинна загруженных данных", ldf)
-# Пример: только ключевые метрики
-print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]', 'Equity Peak [$]',
+if opti == False:
+    bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
+    stats = bt.run()
+    # ==== Формируем DataFrame сделок ====
+    tradesx = stats._trades.copy()
+    if not tradesx.empty:
+        # 1) Направление сделки
+        tradesx['Direction'] = tradesx['Size'].apply(lambda x: 'long' if x > 0 else 'short')
+        # 2) Приведение времени и длительности к человекочитаемому виду
+        tradesx['Duration']  = tradesx['Duration'].astype(str)
+        tradesx['EntryTime'] = tradesx['EntryTime'].dt.strftime('%Y-%m-%d %H:%M')
+        tradesx['ExitTime']  = tradesx['ExitTime'].dt.strftime('%Y-%m-%d %H:%M')
+        # 3) Порядок колонок
+        cols = [
+            'EntryTime', 'EntryBar', 'EntryPrice', 'Direction', 'Size',
+            'SL', 'TP', 'ExitTime', 'ExitBar', 'ExitPrice',
+            'Duration', 'PnL', 'ReturnPct', 'Tag'
+        ]
+        tradesx = tradesx[cols]
+        print(tradesx)
+        # ==== Экспорт в Excel с шириной колонок EntryTime и ExitTime = 16 сим ====
+        with pd.ExcelWriter('Trades.xlsx', engine='xlsxwriter') as writer:
+            tradesx.to_excel(writer, sheet_name='Trades', index=False)
+            # Доступ к листу для настройки ширины столбцов
+            worksheet = writer.sheets['Trades']
+            entry_col = tradesx.columns.get_loc('EntryTime')  # индекс колонки
+            exit_col  = tradesx.columns.get_loc('ExitTime')
+            duration_col  = tradesx.columns.get_loc('Duration')
+            # Ширина = 16 символов
+            worksheet.set_column(entry_col, entry_col, 16)
+            worksheet.set_column(exit_col,  exit_col,  16)
+            worksheet.set_column(duration_col,  duration_col,  16)
+        print("История сделок экспортирована в Trades.xlsx")
+    else:
+        print("❗ Сделок не было — экспорт не выполнен.")
+    print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]', 'Equity Peak [$]',
              'Max. Drawdown [%]', 'Avg. Drawdown [%]', 'Max. Drawdown Duration', 'Avg. Drawdown Duration', '# Trades',
-             'Win Rate [%]', 'Best Trade [%]',
+             'Win Rate [%]', 'Best Trade [%]', 'Return [%]',
              'Worst Trade [%]', 'Avg. Trade [%]', 'Max. Trade Duration', 'Avg. Trade Duration', 'Profit Factor',
              'Expectancy [%]']])
+    bt.plot(resample='15min', open_browser=False) # type: ignore
+
+if opti == True:
+    bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
+    #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
+    stats = bt.optimize(stop_loss_pct=range(5, 20, 5), trail_start_pct=range(1, 5, 1), trail_step_pct=range(1, 5, 1), risk_pct=range(5, 50, 5),
+                        maximize='Equity Final [$]',
+                        return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
+    print(stats)
+    new_st = stats._strategy  # type: ignore
+    #new_st = new_st.to_string()
+    print(new_st)
+    #print(stats['_strategy'])
+    #with open("Stat.log", "w", encoding="utf-8") as sp:
+    #    sp.write(str(stats))
+    #res = pd.DataFrame(stats.to_dict())
+    #res.to_excel("Stat.xlsx", index=False)
+    #stats.to_frame().to_excel("Stat.xlsx")
+
+# Вывод результатов
+# === Сохраняем накопленные логи в файл ===
+with open("Trailing.log", "w", encoding="utf-8") as fp:
+    fp.write("\n".join(trail_log))
+print("Log saved to Trailing.log")
+print("Длинна загруженных данных", ldf)
+# Пример: только ключевые метрики
+
 # Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]',
 #        'Equity Peak [$]', 'Commissions [$]', 'Return [%]',
 #        'Buy & Hold Return [%]', 'Return (Ann.) [%]', 'Volatility (Ann.) [%]',
@@ -191,4 +224,3 @@ print(stats[['Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]'
 #        '_equity_curve', '_trades
 
 
-bt.plot(resample='15min', open_browser=False) # type: ignore

@@ -11,3 +11,4 @@ __pycache__/
 indicators_export.csv
 test.py
 Trades.xlsx
+Trailing.log

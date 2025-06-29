@@ -107,7 +107,7 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     df_15 = df.resample('15min').agg(agg)
     df_15.dropna(inplace=True)
     #df_15.reset_index(inplace=True)
-    print("Загружено баров (15мин):", len(df_15))  # Контрольная точка
+    #print("Загружено баров (15мин):", len(df_15))  # Контрольная точка
     return df_15
 
 # === Генерация сигналов стратегии ===
@@ -144,8 +144,7 @@ def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05, lookba
 
     #print("LongSignal", long_sig[long_sig] )
     # print("ShortSignal", close, short_sig[short_sig] )
-    print("Количество long сигналов 15min :", long_sig.sum())
-    print("Количество short сигналов 15min :", short_sig.sum())
+    print(f"Количество long 15min :{long_sig.sum()} and short 15min :{short_sig.sum()} \n ")
 
     return long_sig, short_sig
 
