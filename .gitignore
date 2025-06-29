@@ -2,7 +2,6 @@
 .venv/
 /.idea/
 .idea/
-Hystory.csv
 main.log
 MyStrategy.html
 __pycache__
