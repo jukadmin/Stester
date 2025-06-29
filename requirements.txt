@@ -2,4 +2,4 @@ backtesting
 matplotlib
 pandas
 numpy
-openpyxl
+xlsxwriter
