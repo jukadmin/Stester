@@ -58,8 +58,8 @@ def adx_histogram(df: pd.DataFrame, period):
     #print("upmove cmd abs :", df['High'].diff().abs())
     #print("upmove str :", up_move)
     down_move = df['Low'].diff().abs()
-    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), other=0)
-    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), other=0)
+    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), other=0) # type: ignore
+    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), other=0) # type: ignore
 
     tr = pd.concat([
         df['High'] - df['Low'],
@@ -104,18 +104,18 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
         'Close':  'last',
         'Volume': 'sum',
     }
-    df_15 = df.resample('15min').agg(agg)
+    df_15 = df.resample('15min').agg(agg) # type: ignore
     df_15.dropna(inplace=True)
     #df_15.reset_index(inplace=True)
     #print("Загружено баров (15мин):", len(df_15))  # Контрольная точка
     return df_15
 
 # === Генерация сигналов стратегии ===
-def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct: float = 0.05, lookback_bars: int = 15):
+def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, lookback_bars: int = 15):
     basis, up_atr, low_atr = atr_bands(df_15min)
     bb_dir, bb_stop = bb_stops(df_15min)
     adx, adx_col = adx_histogram(df_15min, adx_period)
-    print(f"adx_per{adx_period} adx_col{adx_col}")
+    print(f"adx_per{adx_period} atr_touch_pct {atr_touch_pct} ")
 
     channel = up_atr - low_atr
     close = df_15min['Close']
@@ -132,12 +132,13 @@ def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct: float = 
         recent_lower = low_atr.iloc[i]
         recent_upper = up_atr.iloc[i]
 
-        if ((abs(recent_open - recent_lower) / recent_channel < atr_touch_pct) | 
-            (abs(recent_close - recent_lower) / recent_channel < atr_touch_pct)).any():
+        atr_touch_pct_new = atr_touch_pct / 100
+        if ((abs(recent_open - recent_lower) / recent_channel < atr_touch_pct_new) | 
+            (abs(recent_close - recent_lower) / recent_channel < atr_touch_pct_new)).any():
             long_touch.iloc[i] = True
 
-        if ((abs(recent_open - recent_upper) / recent_channel < atr_touch_pct) | 
-            (abs(recent_close - recent_upper) / recent_channel < atr_touch_pct)).any():
+        if ((abs(recent_open - recent_upper) / recent_channel < atr_touch_pct_new) | 
+            (abs(recent_close - recent_upper) / recent_channel < atr_touch_pct_new)).any():
             short_touch.iloc[i] = True
 
     long_sig = long_touch & (bb_dir == 'up') & (adx_col == 'blue')
@@ -170,10 +171,10 @@ def stretch_signals_to_minute(df_15min, df_1min, long_sig, short_sig):
 
 
 # === Выгрузка значений индикаторов в CSV ===
-def export_indicators_to_csv(df_15min: pd.DataFrame, output_file: str = 'indicators_export.csv'):
+def export_indicators_to_csv(df_15min: pd.DataFrame, adx_period, output_file: str = 'indicators_export.csv'):
     basis, upper, lower = atr_bands(df_15min)
     bb_dir, bb_line = bb_stops(df_15min)
-    adx, adx_color = adx_histogram(df_15min)
+    adx, adx_color = adx_histogram(df_15min, adx_period)
 
     out = pd.DataFrame({
         'Datetime': df_15min.index,
