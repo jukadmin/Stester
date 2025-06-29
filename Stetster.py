@@ -31,6 +31,7 @@ class MyStrategy(Strategy):
         )
         self.precision = detect_price_precision(df)
 
+        #export_indicators_to_csv(df_15min)
         # для ведения трейлинга
         self.last_stop = None      # текущий stop‑loss (обновляется трейлингом)
 
@@ -43,40 +44,68 @@ class MyStrategy(Strategy):
         long_signal  = self.long_signal_min.get(current_time, False)
         short_signal = self.short_signal_min.get(current_time, False)
         #print(f"Текущая минута: i= {i} время {self.data.index[-1]}, время new {current_time} price {price} long: {long_signal}, short: {short_signal}")
-
+        # print( )
         # === Вход в позицию ===
         if not self.position:
             entry_value = self.equity * self.risk_pct * self.margin_int
             size = int(round(entry_value / price))  # округляем до целого
+            self.trail_last = 0
 
             if long_signal:
                 sl = price * (1 - self.stop_loss_pct)
                 sl = round(sl, self.precision)
-                self.buy(size=size, sl=sl)
+                self.buy(size=size)
                 self.last_stop = sl
+                self.entry_price = price
+                print(f"Long: Price={price} Position={self.entry_price} SL={sl}")
 
             elif short_signal:
                 sl = price * (1 + self.stop_loss_pct)
                 sl = round(sl, self.precision)
-                self.sell(size=size, sl=sl)
+                self.sell(size=size)
                 self.last_stop = sl
+                self.entry_price = price
+                print(f"Short: Price={price} Position={self.entry_price} SL={sl}")
 
         # === Кастомный трейлинг ===
-        # elif self.position.is_long:
-        #     profit_pct = (price - self.position.entry_price) / self.position.entry_price # type: ignore
-        #     if profit_pct > self.trail_start_pct:
-        #         new_sl = price - price * self.trail_step_pct
-        #         if new_sl > self.last_stop:
-        #             self.position.update_sl(new_sl) # type: ignore
-        #             self.last_stop = new_sl
+        elif self.position.is_long:
+            profit_pct = (price - self.entry_price) / self.entry_price
+            profit_pct = round(profit_pct, self.precision)
+            if profit_pct > self.trail_start_pct :  # включение трейлинга
+                new_sl = price - price * self.trail_start_pct
+                new_sl = round(new_sl, self.precision)
+                new_sl_pct = (( new_sl - self.last_stop ) / self.last_stop ) * 100  # type: ignore
+                new_sl_pct = round(new_sl_pct, self.precision)
+                new_step_pct = self.trail_step_pct * 100
+                if new_sl_pct > new_step_pct:
+                    #self.position.update_sl(new_sl) # type: ignore
+                    print(f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% ")
+                    self.last_stop = new_sl
+            if price <= self.last_stop: # type: ignore
+                #print(f"Position {self.position}")
+                self.position.close()
+                #print(f"Position {self.position}")
+                    
 
-        # elif self.position.is_short:
-        #     profit_pct = (self.position.entry_price - price) / self.position.entry_price # type: ignore
-        #     if profit_pct > self.trail_start_pct:
-        #         new_sl = price + price * self.trail_step_pct
-        #         if new_sl < self.last_stop:
-        #             self.position.update_sl(new_sl) # type: ignore
-        #             self.last_stop = new_sl
+        elif self.position.is_short:
+            profit_pct = (self.entry_price - price) / self.entry_price
+            profit_pct = round(profit_pct, self.precision)
+            if profit_pct > self.trail_start_pct :  # включение трейлинга
+                new_sl = price + price * self.trail_start_pct
+                new_sl = round(new_sl, self.precision)
+                new_sl_pct = (( self.last_stop - new_sl ) / self.last_stop ) * 100  # type: ignore
+                new_sl_pct = round(new_sl_pct, self.precision)
+                new_step_pct = self.trail_step_pct * 100
+                if new_sl_pct > new_step_pct:
+                    #self.position.update_sl(new_sl) # type: ignore
+                    print(f"Last_stop={self.last_stop} new_sl={new_sl} profit_pct={round((profit_pct * 100), 2)}%  new_sl_pct={round(new_sl_pct , 2)}% ")
+                    self.last_stop = new_sl
+            if price >= self.last_stop: # type: ignore
+                #print(f"Position {self.position}")
+                self.position.close()
+                #print(f"Position {self.position}")
+
+
 
 
 # Настройка логгера
@@ -94,17 +123,10 @@ logging.captureWarnings(True)
 # Загрузка данных из файла Hystory.csv
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
-#print(f"Тип индекса df - 1: {type(df.index)}")
-#print("df upload - 1 ", df)
 df.set_index(['Date'], inplace=True)
-#print(f"Тип индекса df - 2: {type(df.index)}")
-#print("df upload - 2 ", df)
-df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
-#print("df upload - 3 ", df)
+df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-10')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
-#print("df upload - 4 ", df)
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
-#print("df upload - 5 ", df)
 ldf = len(df)
 
 
