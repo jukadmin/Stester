@@ -50,7 +50,7 @@ def bb_stops(df: pd.DataFrame, length: int = 20, mult: float = 1.0):
     return pd.Series(direction, index=df.index), pd.Series(stop_line, index=df.index).round(precision)
 
 # === ADX Histogram с цветовой логикой ===
-def adx_histogram(df: pd.DataFrame, period: int = 14):
+def adx_histogram(df: pd.DataFrame, period):
     #print("df15 indic", df)
     precision = detect_price_precision(df)
     up_move   = df['High'].diff().abs()
@@ -111,10 +111,11 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     return df_15
 
 # === Генерация сигналов стратегии ===
-def generate_signals(df_15min: pd.DataFrame, atr_touch_pct: float = 0.05, lookback_bars: int = 15):
+def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct: float = 0.05, lookback_bars: int = 15):
     basis, up_atr, low_atr = atr_bands(df_15min)
     bb_dir, bb_stop = bb_stops(df_15min)
-    adx, adx_col = adx_histogram(df_15min)
+    adx, adx_col = adx_histogram(df_15min, adx_period)
+    print(f"adx_per{adx_period} adx_col{adx_col}")
 
     channel = up_atr - low_atr
     close = df_15min['Close']

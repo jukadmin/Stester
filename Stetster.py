@@ -21,6 +21,7 @@ class MyStrategy(Strategy ):
     #trail_start_pct  = 0.01   # старт трейлинга (от входа в плюс)
     trail_step_pct = 1  # !!! лишний 0. !!! 1 - понимается как 0.1 %
     #trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
+    adx_period = 14  # 14  — Период расчета ADX
 
     def init(self):
         super().init()
@@ -30,7 +31,7 @@ class MyStrategy(Strategy ):
         df_15min  = resample_to_15min(df_1min)        # 15‑минутные бары
 
         # Сигналы long/short на 15‑мин
-        long_15, short_15 = generate_signals(df_15min)
+        long_15, short_15 = generate_signals(df_15min, self.adx_period)
 
         # Растягиваем сигналы на минутный индекс
         self.long_signal_min, self.short_signal_min = stretch_signals_to_minute(
@@ -139,7 +140,7 @@ logging.captureWarnings(True)
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index(['Date'], inplace=True)
-df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-10')]
+df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-03')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
@@ -190,7 +191,8 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(stop_loss_pct=range(5, 20, 5), trail_start_pct=range(1, 5, 1), trail_step_pct=range(1, 5, 1), risk_pct=range(5, 50, 5),
+    stats = bt.optimize(stop_loss_pct=range(5, 15, 5), trail_start_pct=range(1, 2, 1), trail_step_pct=range(1, 5, 1), risk_pct=range(15, 50, 5),
+                        adx_period=range(10, 30, 2),
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
     print(stats)
