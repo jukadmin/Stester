@@ -13,7 +13,7 @@ opti = True
 
 class MyStrategy(Strategy ):
     # Параметры для оптимизации (при желании)
-    stop_loss_pct = 1
+    stop_loss_pct = 10
     #stop_loss_pct    = 0.01   # 1 % — начальный стоп‑лосс
     risk_pct    = 25   # 25 % — размер депо на сделку
     margin_int    = 1   # 1  — коэфициент маржи
@@ -21,10 +21,10 @@ class MyStrategy(Strategy ):
     #trail_start_pct  = 0.01   # старт трейлинга (от входа в плюс)
     trail_step_pct = 1  # !!! лишний 0. !!! 1 - понимается как 0.1 %
     #trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
-    adx_period = 14  # 14  — Период расчета ADX
+    adx_period = 12  # 14  — Период расчета ADX
     atr_touch_pct = 5  # 5 %  — ATR процент касания.
-    bb_length = 20 # 20  Длина Боллинджера (optim 10-30 )
-    bb_mult = 100 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
+    bb_length = 25 # 20  Длина Боллинджера (optim 10-30 )
+    bb_mult = 50 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
     lookback_bars = 15  #  количество баров ATR
 
     def init(self):
@@ -195,12 +195,12 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(stop_loss_pct=range(5, 15, 5), trail_step_pct=range(1, 4, 1), risk_pct=range(20, 50, 10),
-                        adx_period=range(10, 16, 2), atr_touch_pct=range(5, 20, 5),  bb_length=range(10, 30, 5), bb_mult=range(50, 250, 50), 
+    stats = bt.optimize(trail_step_pct=range(1, 2, 1), risk_pct=range(20, 50, 5),
+                        atr_touch_pct=range(5, 20, 5),  bb_length=range(10, 30, 5), bb_mult=range(10, 100, 10), 
                         lookback_bars=range(10, 20, 5),
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
-                        # trail_start_pct=range(1, 2, 1), 
+                        # stop_loss_pct=range(5, 15, 5), trail_start_pct=range(1, 2, 1), adx_period=range(10, 16, 2),
     print(stats)
     new_st = stats._strategy  # type: ignore
     #new_st = new_st.to_string()
