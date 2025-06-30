@@ -22,7 +22,10 @@ class MyStrategy(Strategy ):
     trail_step_pct = 1  # !!! лишний 0. !!! 1 - понимается как 0.1 %
     #trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
     adx_period = 14  # 14  — Период расчета ADX
-    atr_touch_pct = 5  # 5 %  — ATR процент касания. 
+    atr_touch_pct = 5  # 5 %  — ATR процент касания.
+    bb_length = 20 # 20  Длина Боллинджера (optim 10-30 )
+    bb_mult = 100 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
+    lookback_bars = 15  #  количество баров ATR
 
     def init(self):
         super().init()
@@ -32,7 +35,7 @@ class MyStrategy(Strategy ):
         df_15min  = resample_to_15min(df_1min)        # 15‑минутные бары
 
         # Сигналы long/short на 15‑мин
-        long_15, short_15 = generate_signals(df_15min, self.adx_period, self.atr_touch_pct)
+        long_15, short_15 = generate_signals(df_15min, self.adx_period, self.atr_touch_pct, self.bb_length, self.bb_mult, self.lookback_bars)
 
         # Растягиваем сигналы на минутный индекс
         self.long_signal_min, self.short_signal_min = stretch_signals_to_minute(
@@ -192,10 +195,12 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(stop_loss_pct=range(5, 15, 5), trail_start_pct=range(1, 2, 1), trail_step_pct=range(1, 5, 1), risk_pct=range(15, 50, 5),
-                        adx_period=range(10, 20, 2), atr_touch_pct=range(2, 20, 2),
+    stats = bt.optimize(stop_loss_pct=range(5, 15, 5), trail_step_pct=range(1, 4, 1), risk_pct=range(20, 50, 10),
+                        adx_period=range(10, 16, 2), atr_touch_pct=range(5, 20, 5),  bb_length=range(10, 30, 5), bb_mult=range(50, 250, 50), 
+                        lookback_bars=range(10, 20, 5),
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
+                        # trail_start_pct=range(1, 2, 1), 
     print(stats)
     new_st = stats._strategy  # type: ignore
     #new_st = new_st.to_string()

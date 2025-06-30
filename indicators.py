@@ -28,10 +28,11 @@ def atr_bands(df: pd.DataFrame, atr_period: int = 14, ma_period: int = 20, mult:
     return basis.round(precision), upper.round(precision), lower.round(precision)
 
 # === Bollinger Band Stops (упрощённая логика направления) ===
-def bb_stops(df: pd.DataFrame, length: int = 20, mult: float = 1.0):
+def bb_stops(df: pd.DataFrame, bb_length, bb_mult):
     precision = detect_price_precision(df)
-    basis = df['Close'].ewm(span=length, adjust=False).mean()
-    dev = mult * df['Close'].rolling(length).std()
+    basis = df['Close'].ewm(span=bb_length, adjust=False).mean()
+    mult = bb_mult / 100
+    dev = mult * df['Close'].rolling(bb_length).std()
     upper = basis + dev
     lower = basis - dev
 
@@ -111,11 +112,11 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     return df_15
 
 # === Генерация сигналов стратегии ===
-def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, lookback_bars: int = 15):
+def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_length, bb_mult, lookback_bars):
     basis, up_atr, low_atr = atr_bands(df_15min)
-    bb_dir, bb_stop = bb_stops(df_15min)
+    bb_dir, bb_stop = bb_stops(df_15min, bb_length, bb_mult)
     adx, adx_col = adx_histogram(df_15min, adx_period)
-    print(f"adx_per{adx_period} atr_touch_pct {atr_touch_pct} ")
+    print(f"adx_per={adx_period} atr_touch_pct={atr_touch_pct} bb_length={bb_length} bb_mult={(bb_mult / 100) } lookback_bars={lookback_bars}  ")
 
     channel = up_atr - low_atr
     close = df_15min['Close']
@@ -171,9 +172,9 @@ def stretch_signals_to_minute(df_15min, df_1min, long_sig, short_sig):
 
 
 # === Выгрузка значений индикаторов в CSV ===
-def export_indicators_to_csv(df_15min: pd.DataFrame, adx_period, output_file: str = 'indicators_export.csv'):
+def export_indicators_to_csv(df_15min: pd.DataFrame, adx_period, bb_length, bb_mult, output_file: str = 'indicators_export.csv'):
     basis, upper, lower = atr_bands(df_15min)
-    bb_dir, bb_line = bb_stops(df_15min)
+    bb_dir, bb_line = bb_stops(df_15min,  bb_length, bb_mult)
     adx, adx_color = adx_histogram(df_15min, adx_period)
 
     out = pd.DataFrame({
