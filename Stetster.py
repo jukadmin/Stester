@@ -22,10 +22,10 @@ class MyStrategy(Strategy ):
     trail_step_pct = 1  # !!! лишний 0. !!! 1 - понимается как 0.1 %
     #trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
     adx_period = 12  # 14  — Период расчета ADX
-    atr_touch_pct = 5  # 5 %  — ATR процент касания.
-    bb_length = 25 # 20  Длина Боллинджера (optim 10-30 )
+    atr_touch_pct = 16  # 5 %  — ATR процент касания.
+    bb_length = 10  # 20  Длина Боллинджера (optim 10-30 )
     bb_mult = 10 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
-    lookback_bars = 15  #  количество баров ATR
+    lookback_bars = 18  #  количество баров ATR
 
     def init(self):
         super().init()
@@ -195,13 +195,12 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(stop_loss_pct=range(6, 16, 2),
-                        atr_touch_pct=range(10, 20, 2),  bb_length=range(10, 14, 2),  
-                        lookback_bars=range(16, 22, 2),
+    stats = bt.optimize(stop_loss_pct=range(4, 10, 2),
+                        atr_touch_pct=range(14, 20, 2),  
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
-                        #  trail_start_pct=range(1, 2, 1), adx_period=range(10, 16, 2),
-                        # trail_step_pct=range(1, 2, 1),  risk_pct=range(40, 50, 2), bb_mult=range(10, 50, 10),
+                        #  trail_start_pct=range(1, 2, 1), adx_period=range(10, 16, 2), bb_length=range(10, 14, 2), 
+                        # trail_step_pct=range(1, 2, 1),  risk_pct=range(40, 50, 2), bb_mult=range(10, 50, 10), lookback_bars=range(16, 22, 2),
     print(stats)
     new_st = stats._strategy  # type: ignore
     #new_st = new_st.to_string()
