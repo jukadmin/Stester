@@ -15,7 +15,7 @@ class MyStrategy(Strategy ):
     # Параметры для оптимизации (при желании)
     stop_loss_pct = 10
     #stop_loss_pct    = 0.01   # 1 % — начальный стоп‑лосс
-    risk_pct    = 25   # 25 % — размер депо на сделку
+    risk_pct    = 48   # 25 % — размер депо на сделку
     margin_int    = 1   # 1  — коэфициент маржи
     trail_start_pct = 1
     #trail_start_pct  = 0.01   # старт трейлинга (от входа в плюс)
@@ -24,7 +24,7 @@ class MyStrategy(Strategy ):
     adx_period = 12  # 14  — Период расчета ADX
     atr_touch_pct = 5  # 5 %  — ATR процент касания.
     bb_length = 25 # 20  Длина Боллинджера (optim 10-30 )
-    bb_mult = 50 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
+    bb_mult = 10 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
     lookback_bars = 15  #  количество баров ATR
 
     def init(self):
@@ -195,13 +195,13 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(risk_pct=range(40, 50, 2),
-                        atr_touch_pct=range(10, 20, 2),  bb_length=range(10, 20, 2), bb_mult=range(10, 50, 10), 
-                        lookback_bars=range(10, 20, 1),
+    stats = bt.optimize(stop_loss_pct=range(6, 16, 2),
+                        atr_touch_pct=range(10, 20, 2),  bb_length=range(10, 14, 2),  
+                        lookback_bars=range(16, 22, 2),
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
-                        # stop_loss_pct=range(5, 15, 5), trail_start_pct=range(1, 2, 1), adx_period=range(10, 16, 2),
-                        # trail_step_pct=range(1, 2, 1), 
+                        #  trail_start_pct=range(1, 2, 1), adx_period=range(10, 16, 2),
+                        # trail_step_pct=range(1, 2, 1),  risk_pct=range(40, 50, 2), bb_mult=range(10, 50, 10),
     print(stats)
     new_st = stats._strategy  # type: ignore
     #new_st = new_st.to_string()
