@@ -13,7 +13,7 @@ opti = True
 
 class MyStrategy(Strategy ):
     # Параметры для оптимизации (при желании)
-    stop_loss_pct = 10
+    stop_loss_pct = 1
     #stop_loss_pct    = 0.01   # 1 % — начальный стоп‑лосс
     risk_pct    = 48   # 25 % — размер депо на сделку
     margin_int    = 1   # 1  — коэфициент маржи
@@ -22,7 +22,7 @@ class MyStrategy(Strategy ):
     trail_step_pct = 1  # !!! лишний 0. !!! 1 - понимается как 0.1 %
     #trail_step_pct   = 0.001  # «шаг» собственного трейлинга (0.1 %)
     adx_period = 12  # 14  — Период расчета ADX
-    atr_touch_pct = 16  # 5 %  — ATR процент касания.
+    atr_touch_pct = 18  # 5 %  — ATR процент касания.
     bb_length = 10  # 20  Длина Боллинджера (optim 10-30 )
     bb_mult = 10 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
     lookback_bars = 18  #  количество баров ATR
