@@ -193,14 +193,14 @@ if opti == False:
     bt.plot(resample='15min', open_browser=False) # type: ignore
 
 if opti == True:
-    bt = Backtest(df, MyStrategy, cash=200, commission=0.0)
+    bt = Backtest(df, MyStrategy, cash=20000, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(stop_loss_pct=range(1, 10, 1),
+    stats = bt.optimize(stop_loss_pct=range(1, 10, 1), risk_pct=range(40, 50, 2),
                         atr_touch_pct=range(14, 20, 2),  
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
                         #  trail_start_pct=range(1, 2, 1), adx_period=range(10, 16, 2), bb_length=range(10, 14, 2), 
-                        # trail_step_pct=range(1, 2, 1),  risk_pct=range(40, 50, 2), bb_mult=range(10, 50, 10), lookback_bars=range(16, 22, 2),
+                        # trail_step_pct=range(1, 2, 1),  bb_mult=range(10, 50, 10), lookback_bars=range(16, 22, 2),
     print(stats)
     new_st = stats._strategy  # type: ignore
     #new_st = new_st.to_string()
