@@ -245,8 +245,8 @@ def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_lengt
     short_sig = short_touch & (bb_dir == 'down') & (adx_col == 'red')
 
     print(f"IterN: {NINT} [GS][ADX] adx={adx.iloc[-1]} adx_col={adx_col.iloc[-1]} S-l-15min :{long_sig.sum()} \
- S-s-15min :{short_sig.sum()} adx_p={adx_period} bb_l={bb_length} bb_mult={bb_mult} "
-           f"BB:{bb_dir.tail(20).to_string(index=False).replace('\n', ' | ')}  \n" ) 
+ S-s-15min :{short_sig.sum()} adx_p={adx_period} bb_l={bb_length} bb_mult={bb_mult}  \n" )
+       #    f"BB:{bb_dir.tail(20).to_string(index=False).replace('\n', ' | ')}  \n" ) 
     #print(f"type: {type(long_touch)}, dtype: {long_touch.dtype}, индекс совпадает: {long_touch.index.equals(df_15min.index)} \n ")
     #print(f"первые 10 значений: {long_touch.head(10)} \n " ) 
     #print(f"adx_per={adx_period} atr_touch_pct={atr_touch_pct} bb_length={bb_length} bb_mult={(bb_mult / 100) } lookback_bars={lookback_bars} \n ")
