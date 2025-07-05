@@ -116,37 +116,59 @@ def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_lengt
     basis, up_atr, low_atr = atr_bands(df_15min)
     bb_dir, bb_stop = bb_stops(df_15min, bb_length, bb_mult)
     adx, adx_col = adx_histogram(df_15min, adx_period)
-    print(f"adx_per={adx_period} atr_touch_pct={atr_touch_pct} bb_length={bb_length} bb_mult={(bb_mult / 100) } lookback_bars={lookback_bars}  ")
 
     channel = up_atr - low_atr
     close = df_15min['Close']
     open_ = df_15min['Open']
 
+
     # Создаём флаги касания ATR по Close и Open за lookback_bars
-    long_touch = pd.Series(False, index=df_15min.index)
+    # long_touch = pd.Series(False, index=df_15min.index)
+    # short_touch = pd.Series(False, index=df_15min.index)
+    # #print("long_touch" , long_touch) 
+    # for i in range(lookback_bars, len(df_15min)):
+    #     recent_open = open_.iloc[i-lookback_bars:i+1]
+    #     recent_close = close.iloc[i-lookback_bars:i+1]
+    #     recent_channel = channel.iloc[i]
+    #     recent_lower = low_atr.iloc[i]
+    #     recent_upper = up_atr.iloc[i]
+
+    #     atr_touch_pct_new = atr_touch_pct / 100
+    #     if ((abs(recent_open - recent_lower) / recent_channel < atr_touch_pct_new) | 
+    #         (abs(recent_close - recent_lower) / recent_channel < atr_touch_pct_new)).any():
+    #         long_touch.iloc[i] = True
+
+    #     if ((abs(recent_open - recent_upper) / recent_channel < atr_touch_pct_new) | 
+    #         (abs(recent_close - recent_upper) / recent_channel < atr_touch_pct_new)).any():
+    #         short_touch.iloc[i] = True
+
+
+    # # === Векторизация касания ATR по Open/Close за lookback_bars ===
+    pct = atr_touch_pct / 100
+    long_touch  = pd.Series(False, index=df_15min.index)
     short_touch = pd.Series(False, index=df_15min.index)
-    #print("long_touch" , long_touch) 
-    for i in range(lookback_bars, len(df_15min)):
-        recent_open = open_.iloc[i-lookback_bars:i+1]
-        recent_close = close.iloc[i-lookback_bars:i+1]
-        recent_channel = channel.iloc[i]
-        recent_lower = low_atr.iloc[i]
-        recent_upper = up_atr.iloc[i]
 
-        atr_touch_pct_new = atr_touch_pct / 100
-        if ((abs(recent_open - recent_lower) / recent_channel < atr_touch_pct_new) | 
-            (abs(recent_close - recent_lower) / recent_channel < atr_touch_pct_new)).any():
-            long_touch.iloc[i] = True
+    for j in range(lookback_bars + 1):          # j = 0 … lookback_bars
+        open_shift  = open_.shift(j)
+        close_shift = close.shift(j)
 
-        if ((abs(recent_open - recent_upper) / recent_channel < atr_touch_pct_new) | 
-            (abs(recent_close - recent_upper) / recent_channel < atr_touch_pct_new)).any():
-            short_touch.iloc[i] = True
+        long_touch  |= (
+            (abs(open_shift  - low_atr) / channel < pct) |
+            (abs(close_shift - low_atr) / channel < pct)
+        )
+
+        short_touch |= (
+            (abs(open_shift  - up_atr) / channel < pct) |
+            (abs(close_shift - up_atr) / channel < pct)
+        )
 
     long_sig = long_touch & (bb_dir == 'up') & (adx_col == 'blue')
     short_sig = short_touch & (bb_dir == 'down') & (adx_col == 'red')
 
-    #print("LongSignal", long_sig[long_sig] )
-    # print("ShortSignal", close, short_sig[short_sig] )
+    # print(" ", type(long_touch), long_touch.dtype, long_touch.index.equals(df_15min.index), long_touch, " \n" ) 
+    print(f"type: {type(long_touch)}, dtype: {long_touch.dtype}, индекс совпадает: {long_touch.index.equals(df_15min.index)} \n ")
+    print(f"первые 10 значений: {long_touch.head(10)} \n " ) 
+    print(f"adx_per={adx_period} atr_touch_pct={atr_touch_pct} bb_length={bb_length} bb_mult={(bb_mult / 100) } lookback_bars={lookback_bars} \n ")
     print(f"Количество long 15min :{long_sig.sum()} and short 15min :{short_sig.sum()} \n ")
 
     return long_sig, short_sig

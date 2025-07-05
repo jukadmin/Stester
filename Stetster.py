@@ -144,7 +144,7 @@ logging.captureWarnings(True)
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index(['Date'], inplace=True)
-df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-15')]
+df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
@@ -195,12 +195,12 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=2000000, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(adx_period=range(10, 16, 2), bb_length=range(10, 16, 2), 
-                        atr_touch_pct=range(12, 20, 2), bb_mult=range(10, 50, 10), lookback_bars=range(14, 22, 2),
+    stats = bt.optimize(adx_period=range(10, 16, 2), 
+                        atr_touch_pct=range(12, 20, 2), lookback_bars=range(14, 22, 2),
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
                         #  trail_start_pct=range(1, 2, 1),  stop_loss_pct=range(1, 10, 2),
-                        # trail_step_pct=range(1, 2, 1),  
+                        # trail_step_pct=range(1, 2, 1),  bb_length=range(10, 16, 2),  bb_mult=range(10, 50, 10),
                         #  risk_pct=range(40, 50, 2),
     print(stats)
     new_st = stats._strategy  # type: ignore
