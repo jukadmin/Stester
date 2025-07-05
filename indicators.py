@@ -160,7 +160,7 @@ def adx_histogram(df: pd.DataFrame, period, NINT):
     #adx_series   = adx.round(precision)
     #color_series = pd.Series(colors, index=df.index)
 
-    #print(f"📊 IterN: {NINT} Colors: {color_series.value_counts(dropna=False).to_dict()} | 📈 ADX>20: {(adx_series > 20).sum()} | 📉 ADX≤20: {(adx_series <= 20).sum()}")
+    print(f"📊 IterN: {NINT} Colors: {color_series.value_counts(dropna=False).to_dict()} | 📈 ADX>20: {(adx_series > 20).sum()} | 📉 ADX≤20: {(adx_series <= 20).sum()}")
 
     return adx_series, color_series
     

@@ -209,4 +209,4 @@ def get_klines(symbol: str, database_name: str) -> bool:
 # --------------------------------------------------------------------------- #
 
 if __name__ == "__main__":
-    get_klines("SUIUSDT", "cbxbot_db")
+    get_klines("APTUSDT", "cbxbot_db")
