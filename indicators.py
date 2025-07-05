@@ -102,8 +102,8 @@ def adx_histogram(df: pd.DataFrame, period, NINT):
 
 
     
-    precision = detect_price_precision(df)
-    scale = 100
+    precision = detect_price_precision(df)      # 4 у ADA
+    scale = 10 ** precision                      # 10000
 
     high_i = (df["High"]  * scale).astype("int64")
     low_i  = (df["Low"]   * scale).astype("int64")
@@ -119,7 +119,6 @@ def adx_histogram(df: pd.DataFrame, period, NINT):
     h = high_i.to_numpy()
     l = low_i.to_numpy()
     c = close_i.to_numpy()
-    c_prev = np.roll(c, 1)
     c_prev = np.roll(c, 1).astype("float64")  # <--- это фикс
     c_prev[0] = np.nan
     tr_np = np.nanmax([h - l, np.abs(h - c_prev), np.abs(l - c_prev)], axis=0)
