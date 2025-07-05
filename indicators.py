@@ -14,11 +14,24 @@ def detect_price_precision(df: pd.DataFrame) -> int:
 # === ATR Volatility Bands ===
 def atr_bands(df: pd.DataFrame, atr_period: int = 14, ma_period: int = 20, mult: float = 2.0):
     precision = detect_price_precision(df)
-    tr = pd.concat([
-        df['High'] - df['Low'],
-        (df['High'] - df['Close'].shift()).abs(),
-        (df['Low']  - df['Close'].shift()).abs()
-    ], axis=1).max(axis=1)
+    # tr = pd.concat([
+    #     df['High'] - df['Low'],
+    #     (df['High'] - df['Close'].shift()).abs(),
+    #     (df['Low']  - df['Close'].shift()).abs()
+    # ], axis=1).max(axis=1)
+    h = df['High'].to_numpy()
+    l = df['Low'].to_numpy()
+    c = df['Close'].to_numpy()
+    c_prev = np.roll(c, 1).astype("float64")
+    c_prev[0] = np.nan
+
+    tr_np = np.nanmax([
+        h - l,
+        np.abs(h - c_prev),
+        np.abs(l - c_prev)
+    ], axis=0)
+    tr = pd.Series(tr_np, index=df.index)
+
     atr = tr.rolling(atr_period).mean()
 
     basis = df['Close'].ewm(span=ma_period, adjust=False).mean()
@@ -50,43 +63,109 @@ def bb_stops(df: pd.DataFrame, bb_length, bb_mult):
 
     return pd.Series(direction, index=df.index), pd.Series(stop_line, index=df.index).round(precision)
 
+   
 # === ADX Histogram с цветовой логикой ===
-def adx_histogram(df: pd.DataFrame, period):
-    #print("df15 indic", df)
-    precision = detect_price_precision(df)
-    up_move   = df['High'].diff().abs()
-    #print("upmove cmd :", df['High'].diff())
-    #print("upmove cmd abs :", df['High'].diff().abs())
-    #print("upmove str :", up_move)
-    down_move = df['Low'].diff().abs()
-    plus_dm = up_move.where((up_move > down_move) & (up_move > 0), other=0) # type: ignore
-    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), other=0) # type: ignore
+def adx_histogram(df: pd.DataFrame, period, NINT):
+    # #print("df15 indic", df)
+    # precision = detect_price_precision(df)
+    # up_move   = df['High'].diff().abs()
+    # #print("upmove cmd :", df['High'].diff())
+    # #print("upmove cmd abs :", df['High'].diff().abs())
+    # #print("upmove str :", up_move)
+    # down_move = df['Low'].diff().abs()
+    # plus_dm = up_move.where((up_move > down_move) & (up_move > 0), other=0) # type: ignore
+    # minus_dm = down_move.where((down_move > up_move) & (down_move > 0), other=0) # type: ignore
 
-    tr = pd.concat([
-        df['High'] - df['Low'],
-        (df['High'] - df['Close'].shift()).abs(),
-        (df['Low']  - df['Close'].shift()).abs()
-    ], axis=1).max(axis=1)
+    # tr = pd.concat([
+    #     df['High'] - df['Low'],
+    #     (df['High'] - df['Close'].shift()).abs(),
+    #     (df['Low']  - df['Close'].shift()).abs()
+    # ], axis=1).max(axis=1)
+    # atr = tr.rolling(period).mean()
+
+    # plus_di  = 100 * pd.Series(plus_dm).rolling(period).sum() / atr
+    # minus_di = 100 * pd.Series(minus_dm).rolling(period).sum() / atr
+    # dx       = (plus_di - minus_di).abs() / (plus_di + minus_di) * 100
+    # adx      = dx.rolling(period).mean()
+
+    # colors = []
+    # last_color = None
+    # for i in range(len(df)):
+    #     if i < period:
+    #         colors.append(None)
+    #         continue
+    #     if plus_di.iloc[i] > minus_di.iloc[i]:
+    #         last_color = 'blue'
+    #     elif minus_di.iloc[i] > plus_di.iloc[i]:
+    #         last_color = 'red'
+    #     colors.append(last_color)
+
+
+    
+    precision = detect_price_precision(df)
+    scale = 100
+
+    high_i = (df["High"]  * scale).astype("int64")
+    low_i  = (df["Low"]   * scale).astype("int64")
+    close_i= (df["Close"] * scale).astype("int64")
+
+    up_move   = (high_i.diff()).abs()
+    down_move = (low_i.diff()).abs()
+
+    plus_dm  = up_move.where((up_move > down_move) & (up_move > 0), other=0)
+    minus_dm = down_move.where((down_move > up_move) & (down_move > 0), other=0)
+
+    # True Range — NumPy быстрее
+    h = high_i.to_numpy()
+    l = low_i.to_numpy()
+    c = close_i.to_numpy()
+    c_prev = np.roll(c, 1)
+    c_prev = np.roll(c, 1).astype("float64")  # <--- это фикс
+    c_prev[0] = np.nan
+    tr_np = np.nanmax([h - l, np.abs(h - c_prev), np.abs(l - c_prev)], axis=0)
+    tr = pd.Series(tr_np, index=df.index)
     atr = tr.rolling(period).mean()
 
-    plus_di  = 100 * pd.Series(plus_dm).rolling(period).sum() / atr
-    minus_di = 100 * pd.Series(minus_dm).rolling(period).sum() / atr
+    plus_di  = 100 * plus_dm.rolling(period).sum() / atr
+    minus_di = 100 * minus_dm.rolling(period).sum() / atr
     dx       = (plus_di - minus_di).abs() / (plus_di + minus_di) * 100
     adx      = dx.rolling(period).mean()
 
-    colors = []
-    last_color = None
-    for i in range(len(df)):
-        if i < period:
-            colors.append(None)
+    # Цветовая логика без цикла
+    color_series = pd.Series("black", index=df.index, dtype=object)
+
+    for i in range(period, len(df)):
+        if pd.isna(plus_di.iloc[i]) or pd.isna(minus_di.iloc[i]):
             continue
         if plus_di.iloc[i] > minus_di.iloc[i]:
-            last_color = 'blue'
+            color_series.iloc[i] = "blue"
         elif minus_di.iloc[i] > plus_di.iloc[i]:
-            last_color = 'red'
-        colors.append(last_color)
+            color_series.iloc[i] = "red"
+        else:
+            color_series.iloc[i] = color_series.iloc[i - 1]
 
-    return pd.Series(adx, index=df.index).round(precision), pd.Series(colors, index=df.index)
+    adx_series = adx.round(precision)
+
+    # 8️⃣ Диагностические логи (ldbg ≥ 2)
+    # if ldbg >= 4:
+    #     logger.info(
+    #         f"[ADX] up_move={up_move.iloc[-1]} down_move={down_move.iloc[-1]}  plus_dm={plus_dm.iloc[-1]} minus_dm={minus_dm.iloc[-1]} "
+    #         f"tr={tr.iloc[-1]}  atr={atr.iloc[-1]} plus_di={plus_di.iloc[-1]:.2f}  minus_di={minus_di.iloc[-1]:.2f} "
+    #         f"[ADX] dx={dx.iloc[-1]:.2f}  adx={adx.iloc[-1]:.2f}"
+    #     )
+
+    # 9️⃣ Возвращаем:
+    #     • adx – снова float (делим на 1, т.к. плюс_di / minus_di уже в float)
+    #     • округляем по detect_price_precision
+    #adx_series   = adx.round(precision)
+    #color_series = pd.Series(colors, index=df.index)
+
+    #print(f"📊 IterN: {NINT} Colors: {color_series.value_counts(dropna=False).to_dict()} | 📈 ADX>20: {(adx_series > 20).sum()} | 📉 ADX≤20: {(adx_series <= 20).sum()}")
+
+    return adx_series, color_series
+    
+    #print(f"type: {type(adx)}, dtype: {adx.dtype}, \n ADX: {adx.round(precision).tail(10)}, \n Colors: {pd.Series(colors, index=df.index).tail(10)}  \n ") 
+    #return pd.Series(adx, index=df.index).round(precision), pd.Series(colors, index=df.index)
 
 # === Агрегация 1‑минутных данных в 15‑минутный таймфрейм ===
 def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
@@ -112,10 +191,10 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     return df_15
 
 # === Генерация сигналов стратегии ===
-def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_length, bb_mult, lookback_bars):
+def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_length, bb_mult, lookback_bars, NINT: int):
     basis, up_atr, low_atr = atr_bands(df_15min)
     bb_dir, bb_stop = bb_stops(df_15min, bb_length, bb_mult)
-    adx, adx_col = adx_histogram(df_15min, adx_period)
+    adx, adx_col = adx_histogram(df_15min, adx_period, NINT)
 
     channel = up_atr - low_atr
     close = df_15min['Close']
@@ -165,11 +244,13 @@ def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_lengt
     long_sig = long_touch & (bb_dir == 'up') & (adx_col == 'blue')
     short_sig = short_touch & (bb_dir == 'down') & (adx_col == 'red')
 
-    # print(" ", type(long_touch), long_touch.dtype, long_touch.index.equals(df_15min.index), long_touch, " \n" ) 
-    print(f"type: {type(long_touch)}, dtype: {long_touch.dtype}, индекс совпадает: {long_touch.index.equals(df_15min.index)} \n ")
-    print(f"первые 10 значений: {long_touch.head(10)} \n " ) 
-    print(f"adx_per={adx_period} atr_touch_pct={atr_touch_pct} bb_length={bb_length} bb_mult={(bb_mult / 100) } lookback_bars={lookback_bars} \n ")
-    print(f"Количество long 15min :{long_sig.sum()} and short 15min :{short_sig.sum()} \n ")
+    print(f"IterN: {NINT} [GS][ADX] adx={adx.iloc[-1]} adx_col={adx_col.iloc[-1]} S-l-15min :{long_sig.sum()} \
+ S-s-15min :{short_sig.sum()} adx_p={adx_period} bb_l={bb_length} bb_mult={bb_mult} "
+           f"BB:{bb_dir.tail(20).to_string(index=False).replace('\n', ' | ')}  \n" ) 
+    #print(f"type: {type(long_touch)}, dtype: {long_touch.dtype}, индекс совпадает: {long_touch.index.equals(df_15min.index)} \n ")
+    #print(f"первые 10 значений: {long_touch.head(10)} \n " ) 
+    #print(f"adx_per={adx_period} atr_touch_pct={atr_touch_pct} bb_length={bb_length} bb_mult={(bb_mult / 100) } lookback_bars={lookback_bars} \n ")
+    # print(f"IterN: {NINT} Количество long 15min :{long_sig.sum()} and short 15min :{short_sig.sum()} \n ")
 
     return long_sig, short_sig
 
@@ -194,20 +275,20 @@ def stretch_signals_to_minute(df_15min, df_1min, long_sig, short_sig):
 
 
 # === Выгрузка значений индикаторов в CSV ===
-def export_indicators_to_csv(df_15min: pd.DataFrame, adx_period, bb_length, bb_mult, output_file: str = 'indicators_export.csv'):
-    basis, upper, lower = atr_bands(df_15min)
-    bb_dir, bb_line = bb_stops(df_15min,  bb_length, bb_mult)
-    adx, adx_color = adx_histogram(df_15min, adx_period)
+# def export_indicators_to_csv(df_15min: pd.DataFrame, adx_period, bb_length, bb_mult, output_file: str = 'indicators_export.csv'):
+#     basis, upper, lower = atr_bands(df_15min)
+#     bb_dir, bb_line = bb_stops(df_15min,  bb_length, bb_mult)
+#     adx, adx_color = adx_histogram(df_15min, adx_period)
 
-    out = pd.DataFrame({
-        'Datetime': df_15min.index,
-        'ATR_Basis': basis,
-        'ATR_Upper': upper,
-        'ATR_Lower': lower,
-        'BB_Direction': bb_dir,
-        'BB_StopLine': bb_line,
-        'ADX_Value': adx,
-        'ADX_Color': adx_color
-    })
-    out.to_csv(output_file, index=False)
-    print(f"Экспорт индикаторов выполнен: {output_file}")
+#     out = pd.DataFrame({
+#         'Datetime': df_15min.index,
+#         'ATR_Basis': basis,
+#         'ATR_Upper': upper,
+#         'ATR_Lower': lower,
+#         'BB_Direction': bb_dir,
+#         'BB_StopLine': bb_line,
+#         'ADX_Value': adx,
+#         'ADX_Color': adx_color
+#     })
+#     out.to_csv(output_file, index=False)
+#     print(f"Экспорт индикаторов выполнен: {output_file}")

@@ -1,15 +1,16 @@
 from backtesting import Backtest, Strategy
 from backtesting.lib import crossover
 import pandas as pd
-import logging
+import logging, time
 import warnings
 from indicators import resample_to_15min, generate_signals, stretch_signals_to_minute
-from indicators import export_indicators_to_csv, detect_price_precision
+from indicators import detect_price_precision # export_indicators_to_csv, 
 from xlsxwriter import Workbook
 import numpy as np
 
+start_time = time.time()
 opti = True
-
+NINT = 0
 
 class MyStrategy(Strategy ):
     # Параметры для оптимизации (при желании)
@@ -29,14 +30,17 @@ class MyStrategy(Strategy ):
 
     def init(self):
         super().init()
+        global NINT
+        NINT = NINT + 1
+        
         #self.stop_loss_pct = stop_loss_pct
         """Инициализируем индикаторы и сигналы"""
         df_1min   = self.data.df                      # минутные данные
         df_15min  = resample_to_15min(df_1min)        # 15‑минутные бары
 
         # Сигналы long/short на 15‑мин
-        long_15, short_15 = generate_signals(df_15min, self.adx_period, self.atr_touch_pct, self.bb_length, self.bb_mult, self.lookback_bars)
-
+        long_15, short_15 = generate_signals(df_15min, self.adx_period, self.atr_touch_pct, self.bb_length, self.bb_mult, self.lookback_bars, NINT=NINT)
+        # print(f" IterNum= {NINT}  adx_period={self.adx_period} atr_touch_pct={self.atr_touch_pct} lookback_bars={self.lookback_bars} \n")
         # Растягиваем сигналы на минутный индекс
         self.long_signal_min, self.short_signal_min = stretch_signals_to_minute(
             df_15min, df_1min, long_15, short_15
@@ -144,7 +148,7 @@ logging.captureWarnings(True)
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index(['Date'], inplace=True)
-df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
+#df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
@@ -195,17 +199,18 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=2000000, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(adx_period=range(10, 16, 2), 
-                        atr_touch_pct=range(12, 20, 2), lookback_bars=range(14, 22, 2),
+    stats = bt.optimize(adx_period=range(10, 16, 2), bb_length=range(10, 16, 2),  bb_mult=range(10, 50, 10),
+                        atr_touch_pct=range(12, 20, 2), 
                         maximize='Equity Final [$]',
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
                         #  trail_start_pct=range(1, 2, 1),  stop_loss_pct=range(1, 10, 2),
-                        # trail_step_pct=range(1, 2, 1),  bb_length=range(10, 16, 2),  bb_mult=range(10, 50, 10),
-                        #  risk_pct=range(40, 50, 2),
+                        # trail_step_pct=range(1, 2, 1),  
+                        #  risk_pct=range(40, 50, 2), lookback_bars=range(14, 22, 2),
     print(stats)
     new_st = stats._strategy  # type: ignore
     #new_st = new_st.to_string()
     print(new_st)
+    print(f"Iterations= {NINT}")
     #print(stats['_strategy'])
     #with open("Stat.log", "w", encoding="utf-8") as sp:
     #    sp.write(str(stats))
@@ -219,6 +224,19 @@ with open("Trailing.log", "w", encoding="utf-8") as fp:
     fp.write("\n".join(trail_log))
 print("Log saved to Trailing.log")
 print("Длинна загруженных данных", ldf)
+elapsed = time.time() - start_time
+
+hours, rem = divmod(elapsed, 3600)
+minutes, seconds = divmod(rem, 60)
+
+if hours >= 1:
+    print(f"⏱ Время выполнения: {int(hours)}ч {int(minutes)}м {seconds:.2f}с")
+elif minutes >= 1:
+    print(f"⏱ Время выполнения: {int(minutes)}м {seconds:.2f}с")
+else:
+    print(f"⏱ Время выполнения: {seconds:.2f} секунд")
+
+
 # Пример: только ключевые метрики
 
 # Start', 'End', 'Duration', 'Exposure Time [%]', 'Equity Final [$]',
