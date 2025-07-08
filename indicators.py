@@ -159,7 +159,7 @@ def adx_histogram(df: pd.DataFrame, period, NINT):
     #adx_series   = adx.round(precision)
     #color_series = pd.Series(colors, index=df.index)
 
-    print(f"📊 IterN: {NINT} Colors: {color_series.value_counts(dropna=False).to_dict()} | 📈 ADX>20: {(adx_series > 20).sum()} | 📉 ADX≤20: {(adx_series <= 20).sum()}")
+    #print(f"📊 IterN: {NINT} Colors: {color_series.value_counts(dropna=False).to_dict()} | 📈 ADX>20: {(adx_series > 20).sum()} | 📉 ADX≤20: {(adx_series <= 20).sum()}")
 
     return adx_series, color_series
     
@@ -190,7 +190,7 @@ def resample_to_15min(df_1min: pd.DataFrame) -> pd.DataFrame:
     return df_15
 
 # === Генерация сигналов стратегии ===
-def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_length, bb_mult, lookback_bars, NINT: int):
+def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_length, bb_mult, lookback_bars, adx_min, NINT: int):
     basis, up_atr, low_atr = atr_bands(df_15min)
     bb_dir, bb_stop = bb_stops(df_15min, bb_length, bb_mult)
     adx, adx_col = adx_histogram(df_15min, adx_period, NINT)
@@ -240,11 +240,14 @@ def generate_signals(df_15min: pd.DataFrame, adx_period, atr_touch_pct, bb_lengt
             (abs(close_shift - up_atr) / channel < pct)
         )
 
-    long_sig = long_touch & (bb_dir == 'up') & (adx_col == 'blue')
-    short_sig = short_touch & (bb_dir == 'down') & (adx_col == 'red')
+    long_sig = long_touch & (bb_dir == 'up') & (adx_col == 'blue') & (adx > adx_min)
+    short_sig = short_touch & (bb_dir == 'down') & (adx_col == 'red') & (adx > adx_min)
 
-    print(f"IterN: {NINT} [GS][ADX] adx={adx.iloc[-1]} adx_col={adx_col.iloc[-1]} S-l-15min :{long_sig.sum()} \
- S-s-15min :{short_sig.sum()} adx_p={adx_period} bb_l={bb_length} bb_mult={bb_mult}  \n" )
+    adx_sum_min = (adx < adx_min).sum()
+    adx_sum_max = (adx > adx_min).sum()
+    #print(f"📊 IterN: {NINT} | 📈 ADX>{adx_min}: {adx_sum_max} | 📉 ADX≤{adx_min}: {adx_sum_min}")
+    print(f"📊 IterN: {NINT} [GS]  S-l-15min :{long_sig.sum()} S-s-15min :{short_sig.sum()} | adx={adx.iloc[-1]} adx_col={adx_col.iloc[-1]} | \
+  adx_p={adx_period} | 📈 ADX>{adx_min}: {adx_sum_max} | 📉 ADX≤{adx_min}: {adx_sum_min} | bb_l={bb_length} bb_mult={bb_mult}  \n" )
        #    f"BB:{bb_dir.tail(20).to_string(index=False).replace('\n', ' | ')}  \n" ) 
     #print(f"type: {type(long_touch)}, dtype: {long_touch.dtype}, индекс совпадает: {long_touch.index.equals(df_15min.index)} \n ")
     #print(f"первые 10 значений: {long_touch.head(10)} \n " ) 

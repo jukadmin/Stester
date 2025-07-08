@@ -27,6 +27,7 @@ class MyStrategy(Strategy ):
     bb_length = 10  # 20  Длина Боллинджера (optim 10-30 )
     bb_mult = 10 #  1 Множитель BB *100 (optim 0.5 – 2.5 (шаг 0.25 )
     lookback_bars = 18  #  количество баров ATR
+    adx_min = 23
 
     def init(self):
         super().init()
@@ -39,7 +40,7 @@ class MyStrategy(Strategy ):
         df_15min  = resample_to_15min(df_1min)        # 15‑минутные бары
 
         # Сигналы long/short на 15‑мин
-        long_15, short_15 = generate_signals(df_15min, self.adx_period, self.atr_touch_pct, self.bb_length, self.bb_mult, self.lookback_bars, NINT=NINT)
+        long_15, short_15 = generate_signals(df_15min, self.adx_period, self.atr_touch_pct, self.bb_length, self.bb_mult, self.lookback_bars, self.adx_min, NINT=NINT )
         # print(f" IterNum= {NINT}  adx_period={self.adx_period} atr_touch_pct={self.atr_touch_pct} lookback_bars={self.lookback_bars} \n")
         # Растягиваем сигналы на минутный индекс
         self.long_signal_min, self.short_signal_min = stretch_signals_to_minute(
@@ -148,7 +149,7 @@ logging.captureWarnings(True)
 csv_file = 'Hystory.csv'
 df = pd.read_csv(csv_file, parse_dates=['Date'])
 df.set_index(['Date'], inplace=True)
-#df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-05')]
+#df = df[(df.index >= '2025-05-01') & (df.index < '2025-05-10')]
 df = df.rename(columns=lambda x: x.capitalize())  # Убедимся, что заголовки: Open, High, Low, Close, Volume
 df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
 ldf = len(df)
@@ -199,13 +200,13 @@ if opti == False:
 if opti == True:
     bt = Backtest(df, MyStrategy, cash=1000000, commission=0.0)
     #heatmap(bt, p='stop_loss_pct' ) # values='Return [%]
-    stats = bt.optimize(adx_period=range(10, 16, 2), 
-                        atr_touch_pct=range(14, 20, 2), stop_loss_pct=range(4, 8, 1), lookback_bars=range(16, 22, 2),
+    stats = bt.optimize(adx_period=range(10, 16, 2), adx_min=range(18, 28, 2),  bb_length=range(10, 16, 2),
+                         lookback_bars=range(16, 22, 2), stop_loss_pct=range(3, 8, 1),
                         maximize='Equity Final [$]', 
                         return_heatmap=False) # max_tries=200,  random_state=0, constraint=lambda p: p.stop_loss_pct < 0.02,
-                        #  trail_start_pct=range(1, 2, 1),  
-                        # trail_step_pct=range(1, 2, 1),  
-                        #  risk_pct=range(40, 50, 2), bb_length=range(10, 16, 2),  bb_mult=range(10, 50, 10),
+                        #  trail_start_pct=range(1, 2, 1),  atr_touch_pct=range(14, 20, 2),
+                        # trail_step_pct=range(1, 2, 1),   
+                        #  risk_pct=range(40, 50, 2),  bb_mult=range(10, 50, 10),
     print(stats)
     new_st = stats._strategy  # type: ignore
     #new_st = new_st.to_string()
